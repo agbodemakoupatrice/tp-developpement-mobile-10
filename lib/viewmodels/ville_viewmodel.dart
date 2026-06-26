@@ -1,25 +1,31 @@
 import 'package:flutter/foundation.dart';
-
 import '../models/ville.dart';
+import '../models/meteo_data.dart';
+import '../models/prevision_jour.dart';
+import '../services/meteo_service.dart';
 
 class VilleViewModel extends ChangeNotifier {
-  // La liste des villes disponibles
-
   List<Ville> _villes = [];
-  // La ville actuellement selectionnee
-
   Ville? _villeSelectionnee;
-
-  // Getters (la View lit ces proprietes)
+  final MeteoService _meteoService = MeteoService();
+  final Map<String, (MeteoData, DateTime)> _cache = {};
+  MeteoData? _meteoActuelle;
+  bool _chargement = false;
+  String? _erreur;
+  List<PrevisionJour> _previsions = [];
 
   List<Ville> get villes => _villes;
-
   Ville? get villeSelectionnee => _villeSelectionnee;
-
-  // Constructeur : charger des donnees au demarrage
+  MeteoData? get meteoActuelle => _meteoActuelle;
+  bool get chargement => _chargement;
+  String? get erreur => _erreur;
+  List<PrevisionJour> get previsions => _previsions;
 
   VilleViewModel() {
     _initialiser();
+    if (_villeSelectionnee != null) {
+      selectionnerVille(_villeSelectionnee!);
+    }
   }
 
   void _initialiser() {
@@ -31,7 +37,6 @@ class VilleViewModel extends ChangeNotifier {
         condition: 'Ensoleille',
         humidite: 75,
       ),
-
       Ville(
         nom: 'Parakou',
         pays: 'Benin',
@@ -39,7 +44,6 @@ class VilleViewModel extends ChangeNotifier {
         condition: 'Ensoleille',
         humidite: 60,
       ),
-
       Ville(
         nom: 'Lagos',
         pays: 'Nigeria',
@@ -47,7 +51,6 @@ class VilleViewModel extends ChangeNotifier {
         condition: 'Nuageux',
         humidite: 80,
       ),
-
       Ville(
         nom: 'Abidjan',
         pays: 'CI',
@@ -69,21 +72,6 @@ class VilleViewModel extends ChangeNotifier {
         condition: 'Orageux',
         humidite: 90,
       ),
-
-      Ville(
-        nom: 'Lagos',
-        pays: 'Nigeria',
-        temperature: 31,
-        condition: 'Nuageux',
-        humidite: 80,
-      ),
-      Ville(
-        nom: 'Abidjan',
-        pays: 'CI',
-        temperature: 27,
-        condition: 'Pluvieux',
-        humidite: 85,
-      ),
       Ville(
         nom: 'Porto-Novo',
         pays: 'Benin',
@@ -92,23 +80,55 @@ class VilleViewModel extends ChangeNotifier {
         humidite: 84,
       ),
     ];
-
     _villeSelectionnee = _villes.first;
-
-    notifyListeners(); // prevenir les widgets
-  }
-
-  // Changer la ville affichee
-
-  void selectionnerVille(Ville ville) {
-    _villeSelectionnee = ville;
-
     notifyListeners();
   }
 
-  // Ajouter une nouvelle ville à la liste
   void ajouterVille(Ville ville) {
     _villes.add(ville);
-    notifyListeners(); // Force la reconstruction des écrans connectés
+    notifyListeners();
+  }
+
+  Future<void> selectionnerVille(Ville ville) async {
+    _villeSelectionnee = ville;
+
+    if (_cache.containsKey(ville.nom)) {
+      final (meteoCache, dateCache) = _cache[ville.nom]!;
+      if (DateTime.now().difference(dateCache).inMinutes < 30) {
+        _meteoActuelle = meteoCache;
+        _previsions = meteoCache.previsions;
+        notifyListeners();
+        return;
+      }
+    }
+
+    _chargement = true;
+    _erreur = null;
+    notifyListeners();
+
+    final meteo = await _meteoService.getMeteo(ville.nom);
+
+    if (meteo != null) {
+      _meteoActuelle = meteo;
+      _previsions = meteo.previsions;
+      _cache[ville.nom] = (meteo, DateTime.now());
+    } else {
+      _erreur = 'Impossible de charger la météo';
+      _previsions = [];
+    }
+
+    _chargement = false;
+    notifyListeners();
+  }
+
+  Future<bool> ajouterEtVerifierVille(Ville ville) async {
+    // Tester si l'API trouve la ville
+    final meteo = await _meteoService.getMeteo(ville.nom);
+
+    if (meteo == null) return false; // ville introuvable
+
+    _villes.add(ville);
+    notifyListeners();
+    return true;
   }
 }

@@ -14,47 +14,44 @@ class _EcranAjouterVilleState extends State<EcranAjouterVille> {
   final _formKey = GlobalKey<FormState>();
   final _nomController = TextEditingController();
   final _paysController = TextEditingController();
-  final _tempController = TextEditingController();
-  final _humiditeController = TextEditingController();
-
-  String _conditionSelectionnee = 'Ensoleille';
-  final List<String> _conditions = [
-    'Ensoleille',
-    'Nuageux',
-    'Pluvieux',
-    'Orageux',
-    'Ventueux',
-  ];
+  bool _chargement = false;
+  String? _erreur;
 
   @override
   void dispose() {
     _nomController.dispose();
     _paysController.dispose();
-    _tempController.dispose();
-    _humiditeController.dispose();
     super.dispose();
   }
 
-  void _soumettreFormulaire() {
-    if (_formKey.currentState!.validate()) {
-      final double temp =
-          double.tryParse(_tempController.text.replaceAll(',', '.')) ?? 20.0;
-      final int hum = int.tryParse(_humiditeController.text) ?? 50;
+  Future<void> _soumettreFormulaire() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      final nouvelleVille = Ville(
-        nom: _nomController.text.trim(),
-        pays: _paysController.text.trim(),
-        temperature: temp,
-        condition: _conditionSelectionnee,
-        humidite: hum,
-      );
+    setState(() {
+      _chargement = true;
+      _erreur = null;
+    });
 
-      // Utilisation de la méthode universelle Provider pour éviter l'erreur d'état
-      Provider.of<VilleViewModel>(
-        context,
-        listen: false,
-      ).ajouterVille(nouvelleVille);
+    final nouvelleVille = Ville(
+      nom: _nomController.text.trim(),
+      pays: _paysController.text.trim(),
+      temperature: 0, // sera remplacé par l'API
+      condition: 'Variable', // sera remplacé par l'API
+      humidite: 0, // sera remplacé par l'API
+    );
+
+    final vm = Provider.of<VilleViewModel>(context, listen: false);
+    final succes = await vm.ajouterEtVerifierVille(nouvelleVille);
+
+    if (!mounted) return;
+
+    if (succes) {
       Navigator.pop(context);
+    } else {
+      setState(() {
+        _chargement = false;
+        _erreur = 'Ville introuvable. Vérifie le nom et réessaie.';
+      });
     }
   }
 
@@ -79,6 +76,7 @@ class _EcranAjouterVilleState extends State<EcranAjouterVille> {
                   decoration: const InputDecoration(
                     labelText: 'Nom de la ville',
                     border: OutlineInputBorder(),
+                    hintText: 'Ex: Paris, Dakar, Lomé...',
                   ),
                   validator: (val) => val == null || val.isEmpty
                       ? 'Veuillez entrer un nom'
@@ -90,71 +88,55 @@ class _EcranAjouterVilleState extends State<EcranAjouterVille> {
                   decoration: const InputDecoration(
                     labelText: 'Pays',
                     border: OutlineInputBorder(),
+                    hintText: 'Ex: France, Sénégal, Togo...',
                   ),
                   validator: (val) => val == null || val.isEmpty
                       ? 'Veuillez entrer un pays'
                       : null,
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _tempController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Température (°C)',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (val) {
-                    if (val == null || val.isEmpty)
-                      return 'Veuillez entrer une température';
-                    if (double.tryParse(val.replaceAll(',', '.')) == null)
-                      return 'Nombre invalide';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _humiditeController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Humidité (%)',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (val) {
-                    if (val == null || val.isEmpty)
-                      return 'Veuillez entrer l\'humidité';
-                    final j = int.tryParse(val);
-                    if (j == null || j < 0 || j > 100) return 'Entre 0 et 100';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: _conditionSelectionnee,
-                  decoration: const InputDecoration(
-                    labelText: 'Condition météo',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _conditions
-                      .map(
-                        (String c) =>
-                            DropdownMenuItem(value: c, child: Text(c)),
-                      )
-                      .toList(),
-                  onChanged: (val) {
-                    if (val != null)
-                      setState(() => _conditionSelectionnee = val);
-                  },
-                ),
                 const SizedBox(height: 32),
+
+                if (_erreur != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _erreur!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 ElevatedButton(
-                  onPressed: _soumettreFormulaire,
+                  onPressed: _chargement ? null : _soumettreFormulaire,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: const Text('Enregistrer la ville'),
+                  child: _chargement
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text('Enregistrer la ville'),
                 ),
               ],
             ),
