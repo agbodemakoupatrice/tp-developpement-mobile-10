@@ -1,5 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../services/localisation_service.dart';
+import '../services/meteo_service.dart';
 import '../viewmodels/ville_viewmodel.dart';
 import 'ecran_liste_ville.dart';
 
@@ -59,6 +63,44 @@ class EcranAccueil extends StatelessWidget {
     }
   }
 
+  Future<void> _choisirPhoto(BuildContext context) async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      if (context.mounted) {
+        context.read<VilleViewModel>().mettreAJourPhoto(image.path);
+      }
+    }
+  }
+
+  Future<void> _trouverVilleProche(BuildContext context) async {
+    final service = LocalisationService();
+    final position = await service.getPosition();
+
+    if (!context.mounted) return;
+
+    if (position != null) {
+      final vm = context.read<VilleViewModel>();
+      final villeProche = service.trouverVilleProche(
+        position,
+        vm.villes,
+        MeteoService.coords,
+      );
+      if (villeProche != null) {
+        vm.selectionnerVille(villeProche);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ville proche : ${villeProche.nom}')),
+          );
+        }
+      }
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('GPS indisponible')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<VilleViewModel>();
@@ -70,6 +112,13 @@ class EcranAccueil extends StatelessWidget {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.my_location),
+            onPressed: () => _trouverVilleProche(context),
+            tooltip: 'Ville la plus proche',
+          ),
+        ],
       ),
       body: ville == null
           ? const Center(child: CircularProgressIndicator())
@@ -79,17 +128,52 @@ class EcranAccueil extends StatelessWidget {
               decoration: BoxDecoration(color: _couleurFond(ville.condition)),
               child: SingleChildScrollView(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 16),
+
+                    // ── Photo de la ville ──────────────────────────
+                    GestureDetector(
+                      onTap: () => _choisirPhoto(context),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: ville.photoPath != null
+                            ? Image.file(
+                                File(ville.photoPath!),
+                                width: double.infinity,
+                                height: 180,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                width: double.infinity,
+                                height: 180,
+                                color: Colors.grey[200],
+                                child: const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.add_a_photo,
+                                      size: 50,
+                                      color: Colors.grey,
+                                    ),
+                                    Text('Appuyez pour ajouter une photo'),
+                                  ],
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ── Icône météo ────────────────────────────────
                     Icon(
                       _iconeMeteo(ville.condition),
-                      size: 100,
+                      size: 80,
                       color: ville.condition.toLowerCase() == 'ensoleille'
                           ? Colors.orange.shade700
                           : Colors.blueGrey.shade700,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
+
                     Consumer<VilleViewModel>(
                       builder: (context, vm, _) {
                         if (vm.chargement) {
@@ -116,7 +200,9 @@ class EcranAccueil extends StatelessWidget {
                           );
                         }
                         final meteo = vm.meteoActuelle;
-                        if (meteo == null) return const Text('Chargement...');
+                        if (meteo == null) {
+                          return const Text('Chargement...');
+                        }
 
                         return Column(
                           children: [
@@ -209,7 +295,10 @@ class EcranAccueil extends StatelessWidget {
                         );
                       },
                     ),
-                    const SizedBox(height: 40),
+
+                    const SizedBox(height: 32),
+
+                    // ── Boutons ────────────────────────────────────
                     ElevatedButton.icon(
                       icon: const Icon(Icons.list),
                       label: const Text('Changer de ville'),

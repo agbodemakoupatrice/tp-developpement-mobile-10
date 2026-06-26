@@ -1,4 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permission Camera-->
+<uses-permission android:name="android.permission.CAMERA" />
+<!-- Permission GPS-->
+<uses-permission android:name="android.permission.
+ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.
+ACCESS_COARSE_LOCATION" />
+<!-- Permission lecture galerie (Android <= 12)-->
+<uses-permission android:name="android.permission.
+READ_EXTERNAL_STORAGE"
+android:maxSdkVersion="32"/>
+<!-- Permission lecture galerie (Android 13+)-->
+<uses-permission android:name="android.permission.
+READ_MEDIA_IMAGES"/>
+
     <application
         android:label="apps_meteo"
         android:name="${applicationName}"

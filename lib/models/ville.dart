@@ -9,6 +9,8 @@ class Ville {
 
   final int humidite; // en pourcentage (0-100)
 
+  final String? photoPath;
+
   Ville({
     required this.nom,
 
@@ -19,5 +21,20 @@ class Ville {
     required this.condition,
 
     required this.humidite,
+    this.photoPath,
   });
+  // Copier la ville avec une nouvelle photo
+
+  Ville copierAvecPhoto(String chemin) {
+    return Ville(
+      nom: nom,
+      pays: pays,
+      temperature: temperature,
+
+      condition: condition,
+      humidite: humidite,
+
+      photoPath: chemin,
+    );
+  }
 }

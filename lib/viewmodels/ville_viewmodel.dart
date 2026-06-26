@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+// import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../models/ville.dart';
 import '../models/meteo_data.dart';
 import '../models/prevision_jour.dart';
@@ -14,6 +15,9 @@ class VilleViewModel extends ChangeNotifier {
   String? _erreur;
   List<PrevisionJour> _previsions = [];
 
+  // final FlutterLocalNotificationsPlugin _notificationsPlugin =
+  //     FlutterLocalNotificationsPlugin();
+
   List<Ville> get villes => _villes;
   Ville? get villeSelectionnee => _villeSelectionnee;
   MeteoData? get meteoActuelle => _meteoActuelle;
@@ -22,11 +26,20 @@ class VilleViewModel extends ChangeNotifier {
   List<PrevisionJour> get previsions => _previsions;
 
   VilleViewModel() {
+    // _initialiserNotifications();
     _initialiser();
     if (_villeSelectionnee != null) {
       selectionnerVille(_villeSelectionnee!);
     }
   }
+
+  // Future<void> _initialiserNotifications() async {
+  //   const AndroidInitializationSettings androidSettings =
+  //       AndroidInitializationSettings('@mipmap/ic_launcher');
+  //   const InitializationSettings settings =
+  //       InitializationSettings(android: androidSettings);
+  //   await _notificationsPlugin.initialize(settings);
+  // }
 
   void _initialiser() {
     _villes = [
@@ -89,6 +102,15 @@ class VilleViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void mettreAJourPhoto(String cheminPhoto) {
+    if (_villeSelectionnee == null) return;
+    final index = _villes.indexWhere((v) => v.nom == _villeSelectionnee!.nom);
+    if (index == -1) return;
+    _villes[index] = _villes[index].copierAvecPhoto(cheminPhoto);
+    _villeSelectionnee = _villes[index];
+    notifyListeners();
+  }
+
   Future<void> selectionnerVille(Ville ville) async {
     _villeSelectionnee = ville;
 
@@ -112,6 +134,7 @@ class VilleViewModel extends ChangeNotifier {
       _meteoActuelle = meteo;
       _previsions = meteo.previsions;
       _cache[ville.nom] = (meteo, DateTime.now());
+      // await _verifierAlerteChaleur();
     } else {
       _erreur = 'Impossible de charger la météo';
       _previsions = [];
@@ -122,13 +145,28 @@ class VilleViewModel extends ChangeNotifier {
   }
 
   Future<bool> ajouterEtVerifierVille(Ville ville) async {
-    // Tester si l'API trouve la ville
     final meteo = await _meteoService.getMeteo(ville.nom);
-
-    if (meteo == null) return false; // ville introuvable
-
+    if (meteo == null) return false;
     _villes.add(ville);
     notifyListeners();
     return true;
   }
+
+  // Future<void> _verifierAlerteChaleur() async {
+  //   if (_meteoActuelle == null) return;
+  //   if (_meteoActuelle!.temperature > 33) {
+  //     const AndroidNotificationDetails details = AndroidNotificationDetails(
+  //       'canal_alerte',
+  //       'Alertes Meteo',
+  //       importance: Importance.high,
+  //       priority: Priority.high,
+  //     );
+  //     await _notificationsPlugin.show(
+  //       1,
+  //       'Alerte chaleur !',
+  //       'Il fait ${_meteoActuelle!.temperature.toStringAsFixed(0)}°C à ${_villeSelectionnee!.nom}',
+  //       const NotificationDetails(android: details),
+  //     );
+  //   }
+  // }
 }

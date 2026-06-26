@@ -3,8 +3,7 @@ import '../models/meteo_data.dart';
 import '../models/prevision_jour.dart';
 
 class MeteoService {
-  // Coordonnées des villes de base
-  static final Map<String, List<double>> _coords = {
+  static final Map<String, List<double>> coords = {
     'Cotonou': [6.3703, 2.3912],
     'Parakou': [9.3370, 2.6283],
     'Lagos': [6.4541, 3.3947],
@@ -36,10 +35,8 @@ class MeteoService {
     );
   }
 
-  // Trouver les coordonnées d'une ville automatiquement
   Future<List<double>?> _obtenirCoordonnees(String nomVille) async {
-    // Déjà connue
-    if (_coords.containsKey(nomVille)) return _coords[nomVille];
+    if (coords.containsKey(nomVille)) return coords[nomVille];
 
     try {
       final response = await _geoDio.get(
@@ -57,10 +54,7 @@ class MeteoService {
 
       final lat = (results[0]['latitude'] as num).toDouble();
       final lon = (results[0]['longitude'] as num).toDouble();
-
-      // Mettre en cache pour éviter de rappeler l'API
-      _coords[nomVille] = [lat, lon];
-
+      coords[nomVille] = [lat, lon];
       return [lat, lon];
     } catch (e) {
       print('geocoding error: $e');
@@ -69,15 +63,15 @@ class MeteoService {
   }
 
   Future<MeteoData?> getMeteo(String nomVille) async {
-    final coords = await _obtenirCoordonnees(nomVille);
-    if (coords == null) return null;
+    final c = await _obtenirCoordonnees(nomVille);
+    if (c == null) return null;
 
     try {
       final response = await _dio.get(
         '/forecast',
         queryParameters: {
-          'latitude': coords[0],
-          'longitude': coords[1],
+          'latitude': c[0],
+          'longitude': c[1],
           'current': 'temperature_2m,relative_humidity_2m,weather_code',
           'daily': 'temperature_2m_max,temperature_2m_min,weather_code',
           'timezone': 'Africa/Lagos',
@@ -87,7 +81,6 @@ class MeteoService {
 
       final current = response.data['current'] as Map<String, dynamic>;
       final daily = response.data['daily'] as Map<String, dynamic>;
-
       return MeteoData.fromJson(current, daily);
     } catch (e) {
       print('getMeteo error: $e');
