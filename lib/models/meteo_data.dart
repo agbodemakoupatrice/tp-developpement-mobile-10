@@ -57,4 +57,9 @@ class MeteoData {
     final date = DateTime.parse(dateHeure);
     return DateFormat("dd/MM/yyyy HH'h'mm").format(date);
   }
+
+  // Exercice B TP5
+  bool estDangereux() {
+    return temperature > 40 || weatherCode >= 95;
+  }
 }
