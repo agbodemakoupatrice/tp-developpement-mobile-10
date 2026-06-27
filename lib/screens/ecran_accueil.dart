@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +7,7 @@ import '../services/meteo_service.dart';
 import '../viewmodels/ville_viewmodel.dart';
 import 'ecran_liste_ville.dart';
 import 'ecran_detail_ville.dart';
+import 'ecran_carte.dart';
 
 class EcranAccueil extends StatefulWidget {
   const EcranAccueil({super.key});
@@ -18,22 +18,15 @@ class EcranAccueil extends StatefulWidget {
 
 class _EcranAccueilState extends State<EcranAccueil>
     with SingleTickerProviderStateMixin {
-  // ── TP4 : Animation fondu ────────────────────────────
   bool _visible = false;
-
-  // ── TP4 Exercice C : Rotation soleil ────────────────
   late AnimationController _rotationController;
 
   @override
   void initState() {
     super.initState();
-
-    // Fondu au démarrage
     Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) setState(() => _visible = true);
     });
-
-    // Rotation continue
     _rotationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
@@ -77,7 +70,6 @@ class _EcranAccueilState extends State<EcranAccueil>
     return Icons.wb_cloudy;
   }
 
-  // ── TP4 Exercice B : couleur selon température ──────
   Color _couleurFond(String condition, double? temperature) {
     if (temperature != null) {
       if (temperature < 20) return Colors.blue.shade100;
@@ -114,12 +106,20 @@ class _EcranAccueilState extends State<EcranAccueil>
     if (!context.mounted) return;
 
     if (position != null) {
+      print('>>> Position: ${position.latitude}, ${position.longitude}');
+      print('>>> Coords dispo: ${MeteoService.coords.keys.toList()}');
+
       final vm = context.read<VilleViewModel>();
+      print('>>> Villes: ${vm.villes.map((v) => v.nom).toList()}');
+
       final villeProche = service.trouverVilleProche(
         position,
         vm.villes,
         MeteoService.coords,
       );
+
+      print('>>> Ville trouvée: ${villeProche?.nom}');
+
       if (villeProche != null) {
         vm.selectionnerVille(villeProche);
         if (context.mounted) {
@@ -127,6 +127,10 @@ class _EcranAccueilState extends State<EcranAccueil>
             SnackBar(content: Text('Ville proche : ${villeProche.nom}')),
           );
         }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Aucune ville proche trouvée')),
+        );
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -140,8 +144,7 @@ class _EcranAccueilState extends State<EcranAccueil>
     final vm = context.watch<VilleViewModel>();
     final ville = vm.villeSelectionnee;
     final temperature = vm.meteoActuelle?.temperature;
-    final estEnsoleille =
-        ville?.condition.toLowerCase() == 'ensoleille';
+    final estEnsoleille = ville?.condition.toLowerCase() == 'ensoleille';
 
     return Scaffold(
       appBar: AppBar(
@@ -151,20 +154,28 @@ class _EcranAccueilState extends State<EcranAccueil>
         centerTitle: true,
         actions: [
           IconButton(
+            icon: const Icon(Icons.map),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EcranCarte()),
+              );
+            },
+            tooltip: 'Carte des villes',
+          ),
+          IconButton(
             icon: const Icon(Icons.my_location),
             onPressed: () => _trouverVilleProche(context),
             tooltip: 'Ville la plus proche',
           ),
         ],
       ),
-      // ── TP4 : Fondu au démarrage ─────────────────────
       body: AnimatedOpacity(
         opacity: _visible ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeIn,
         child: ville == null
             ? const Center(child: CircularProgressIndicator())
-            // ── TP4 Exercice B : couleur animée ──────────
             : AnimatedContainer(
                 duration: const Duration(milliseconds: 800),
                 width: double.infinity,
@@ -174,8 +185,6 @@ class _EcranAccueilState extends State<EcranAccueil>
                   child: Column(
                     children: [
                       const SizedBox(height: 16),
-
-                      // ── Photo de la ville ──────────────
                       GestureDetector(
                         onTap: () => _choisirPhoto(context),
                         child: ClipRRect(
@@ -192,8 +201,7 @@ class _EcranAccueilState extends State<EcranAccueil>
                                   height: 180,
                                   color: Colors.grey[200],
                                   child: const Column(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(Icons.add_a_photo,
                                           size: 50, color: Colors.grey),
@@ -203,10 +211,7 @@ class _EcranAccueilState extends State<EcranAccueil>
                                 ),
                         ),
                       ),
-
                       const SizedBox(height: 16),
-
-                      // ── TP4 : Hero + icône animée ──────
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
@@ -221,7 +226,6 @@ class _EcranAccueilState extends State<EcranAccueil>
                         },
                         child: Hero(
                           tag: 'icone-${vm.villeSelectionnee?.nom ?? "meteo"}',
-                          // TP4 Exercice A : taille animée selon température
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 500),
                             curve: Curves.elasticOut,
@@ -231,7 +235,6 @@ class _EcranAccueilState extends State<EcranAccueil>
                             height: (temperature != null && temperature > 30)
                                 ? 120
                                 : 80,
-                            // TP4 Exercice C : rotation si ensoleillé
                             child: estEnsoleille
                                 ? RotationTransition(
                                     turns: _rotationController,
@@ -255,9 +258,7 @@ class _EcranAccueilState extends State<EcranAccueil>
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
                       Consumer<VilleViewModel>(
                         builder: (context, vm, _) {
                           if (vm.chargement) {
@@ -280,9 +281,7 @@ class _EcranAccueilState extends State<EcranAccueil>
                             );
                           }
                           final meteo = vm.meteoActuelle;
-                          if (meteo == null) {
-                            return const Text('Chargement...');
-                          }
+                          if (meteo == null) return const Text('Chargement...');
 
                           return Column(
                             children: [
@@ -301,26 +300,21 @@ class _EcranAccueilState extends State<EcranAccueil>
                                     fontSize: 14, color: Colors.black45),
                               ),
                               const SizedBox(height: 16),
-
-                              // ── TP4 : AnimatedSwitcher température ──
                               AnimatedSwitcher(
-                                duration:
-                                    const Duration(milliseconds: 400),
+                                duration: const Duration(milliseconds: 400),
                                 transitionBuilder: (child, animation) {
                                   return FadeTransition(
                                       opacity: animation, child: child);
                                 },
                                 child: Text(
                                   '${meteo.temperature.toStringAsFixed(1)} °C',
-                                  key: ValueKey(
-                                      vm.villeSelectionnee?.nom),
+                                  key: ValueKey(vm.villeSelectionnee?.nom),
                                   style: const TextStyle(
                                     fontSize: 60,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ),
-
                               const SizedBox(height: 8),
                               Text(
                                 'Mesure du ${meteo.dateHeureFormatee}',
@@ -329,32 +323,26 @@ class _EcranAccueilState extends State<EcranAccueil>
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                '${meteo.conditionTexte} · ${meteo.humidite}% humidité',
-                              ),
+                                  '${meteo.conditionTexte} · ${meteo.humidite}% humidité'),
                               const SizedBox(height: 24),
                               const Divider(indent: 32, endIndent: 32),
                               const SizedBox(height: 16),
-
-                              // ── Prévisions ───────────────────────────
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: vm.previsions.map((p) {
                                   return Padding(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 6),
                                     child: Container(
                                       width: 90,
-                                      padding:
-                                          const EdgeInsets.symmetric(
-                                              vertical: 12),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
                                       decoration: BoxDecoration(
-                                        color: Colors.white
-                                            .withOpacity(0.55),
+                                        color: Colors.white.withOpacity(0.55),
                                         borderRadius:
                                             BorderRadius.circular(14),
-                                        border: Border.all(
-                                            color: Colors.white60),
+                                        border:
+                                            Border.all(color: Colors.white60),
                                       ),
                                       child: Column(
                                         mainAxisAlignment:
@@ -366,8 +354,7 @@ class _EcranAccueilState extends State<EcranAccueil>
                                                       FontWeight.w600)),
                                           const SizedBox(height: 8),
                                           Icon(
-                                              _iconeMeteoCode(
-                                                  p.weatherCode),
+                                              _iconeMeteoCode(p.weatherCode),
                                               size: 28),
                                           const SizedBox(height: 8),
                                           Text(
@@ -386,7 +373,6 @@ class _EcranAccueilState extends State<EcranAccueil>
                           );
                         },
                       ),
-
                       const SizedBox(height: 32),
                       ElevatedButton.icon(
                         icon: const Icon(Icons.list),
@@ -399,6 +385,13 @@ class _EcranAccueilState extends State<EcranAccueil>
                           );
                         },
                       ),
+                      ElevatedButton.icon(
+  icon: const Icon(Icons.notifications),
+  label: const Text('Tester notification'),
+  onPressed: () {
+    context.read<VilleViewModel>().testerNotification();
+  },
+),
                       const SizedBox(height: 32),
                     ],
                   ),

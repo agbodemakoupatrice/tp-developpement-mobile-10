@@ -170,4 +170,19 @@ class VilleViewModel extends ChangeNotifier {
       );
     }
   }
+
+  Future<void> testerNotification() async {
+  const AndroidNotificationDetails details = AndroidNotificationDetails(
+    'canal_alerte',
+    'Alertes Meteo',
+    importance: Importance.high,
+    priority: Priority.high,
+  );
+  await _notificationsPlugin.show(
+    2,
+    'Test notification !',
+    'Les notifications fonctionnent correctement ✓',
+    const NotificationDetails(android: details),
+  );
+}
 }

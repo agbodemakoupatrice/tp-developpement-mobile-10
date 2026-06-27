@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import '../models/meteo_data.dart';
-import '../models/prevision_jour.dart';
 
 class MeteoService {
   static final Map<String, List<double>> coords = {

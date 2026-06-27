@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:apps_meteo/models/meteo_data.dart';
-import 'package:apps_meteo/models/prevision_jour.dart';
 
 void main() {
   group('MeteoData - conditionTexte', () {
