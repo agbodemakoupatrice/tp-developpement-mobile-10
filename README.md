@@ -1,5 +1,7 @@
 # TP1 - Developpement mobile avance
 
+![CI Status](https://github.com/agbodemakoupatrice/tp-developpement-mobile-10/actions/workflows/ci.yml/badge.svg)
+
 ## Nom du projet
 
 Application meteo AppMeteo - TP UE2
